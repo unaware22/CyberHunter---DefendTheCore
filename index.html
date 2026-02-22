@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cyber Hunter 1.0: Defend The Core</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon-blue: #00f3ff; --neon-red: #ff003c; --neon-green: #39ff14;
+            --neon-purple: #b829ff; --glass-bg: rgba(10, 15, 30, 0.85);
+        }
+
+        body {
+            margin: 0; overflow: hidden; background-color: #020202;
+            font-family: 'Rajdhani', sans-serif; color: white; cursor: none;
+            user-select: none; -webkit-user-select: none; touch-action: none;
+            background-image: radial-gradient(circle at center, rgba(0, 243, 255, 0.05) 0%, transparent 70%),
+                              linear-gradient(rgba(0, 243, 255, 0.03) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px);
+            background-size: 100% 100%, 40px 40px, 40px 40px;
+        }
+
+        .glass-panel { background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid rgba(0, 243, 255, 0.2); box-shadow: 0 0 20px rgba(0, 243, 255, 0.1); border-radius: 8px; }
+        #uiLayer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+
+        #hud { display: none; padding: 20px; justify-content: space-between; align-items: flex-start; }
+        .hud-left { display: flex; flex-direction: column; gap: 8px; }
+        .hud-box { padding: 8px 15px; font-size: 20px; font-weight: 700; pointer-events: auto; text-transform: uppercase; margin: 0;}
+        
+        .text-cyan { color: var(--neon-blue); text-shadow: 0 0 10px var(--neon-blue); }
+        .text-gold { color: #ffd700; text-shadow: 0 0 10px #ffd700; }
+        .text-purple { color: var(--neon-purple); text-shadow: 0 0 10px var(--neon-purple); }
+        .text-green { color: var(--neon-green); text-shadow: 0 0 10px var(--neon-green); }
+        .text-red { color: var(--neon-red); text-shadow: 0 0 10px var(--neon-red); }
+        
+        #topNav { display: flex; gap: 10px; pointer-events: auto; }
+        .icon-btn { background: var(--glass-bg); border: 1px solid var(--neon-blue); color: var(--neon-blue); font-family: 'Rajdhani'; font-size: 1rem; font-weight: bold; padding: 8px 12px; border-radius: 6px; cursor: pointer; transition: 0.3s; }
+        .icon-btn:hover { background: var(--neon-blue); color: black; box-shadow: 0 0 15px var(--neon-blue); }
+
+        .modal { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.9); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 10; pointer-events: auto; }
+        .modal-content { width: 500px; padding: 30px; text-align: center; max-width: 90%; box-sizing: border-box; }
+        .modal h1 { font-size: 3.5rem; margin: 0 0 10px 0; color: white; text-shadow: 0 0 20px var(--neon-blue); letter-spacing: 2px; }
+        
+        .btn-main { margin-top: 15px; background: transparent; color: var(--neon-blue); border: 2px solid var(--neon-blue); padding: 12px; font-family: 'Rajdhani'; font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: all 0.3s ease; width: 100%; text-transform: uppercase;}
+        .btn-main:hover { background: var(--neon-blue); color: black; box-shadow: 0 0 20px var(--neon-blue); transform: scale(1.02); }
+        
+        .btn-lvl-1 { border-color: var(--neon-green); color: var(--neon-green); }
+        .btn-lvl-2 { border-color: #ffd700; color: #ffd700; }
+        .btn-lvl-3 { border-color: var(--neon-red); color: var(--neon-red); }
+
+        .shop-grid { display: grid; gap: 10px; margin-top: 15px; text-align: left; max-height: 50vh; overflow-y: auto;}
+        .shop-item { display: flex; justify-content: space-between; align-items: center; border: 1px solid #334155; padding: 10px; border-radius: 8px; }
+        .buy-btn { background: #ffd700; color: black; border: none; padding: 8px 12px; font-weight: bold; cursor: pointer; font-family: 'Rajdhani'; border-radius: 4px; }
+        .buy-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+
+        #damageOverlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, transparent 50%, rgba(255,0,0,0.4) 100%); display: none; pointer-events: none; z-index: 4; }
+
+        canvas { display: block; width: 100vw; height: 100vh; }
+
+        @media (max-width: 768px) {
+            #hud { flex-direction: column; gap: 10px; }
+            #topNav { width: 100%; justify-content: flex-end; }
+            .modal h1 { font-size: 2.5rem; }
+            .hud-box { font-size: 14px; }
+            body { cursor: auto; } 
+        }
+    </style>
+</head>
+<body>
+
+    <audio id="bgMusic" loop><source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3" type="audio/mpeg"></audio>
+
+    <div id="damageOverlay"></div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="uiLayer">
+        <div id="hud">
+            <div class="hud-left">
+                <div class="glass-panel hud-box text-red" style="border-color: var(--neon-red);">CORE HP: <span id="playerHpUI">100</span>%</div>
+                
+                <div class="glass-panel hud-box text-purple" id="levelNameUI">SECTOR: UNKNOWN</div>
+                <div class="glass-panel hud-box text-cyan">WAVE <span id="waveUI">1</span></div>
+                <div class="glass-panel hud-box">
+                    <span style="font-size: 0.8rem; color: #aaa;">WEAPON: </span>
+                    <span id="weaponNameUI">PULSE RIFLE</span> 
+                </div>
+                <div class="glass-panel hud-box text-gold">CRÉDITS: <span id="coinUI">0</span></div>
+                <div class="glass-panel hud-box text-green">BEST RECORD: <span id="highScoreUI">0</span></div>
+            </div>
+            
+            <div id="topNav">
+                <button class="icon-btn" id="btnOpenShop">🛒 ARMORY</button>
+                <button class="icon-btn" id="btnOpenOptions">⚙️ MENU</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="mainMenu" class="modal" style="display: flex;">
+        <div class="modal-content glass-panel">
+            <h1>CYBER HUNTER</h1>
+            <p style="color: var(--neon-blue); font-size: 1.2rem; letter-spacing: 3px;">DEFEND THE CORE</p>
+            <p style="color: var(--neon-green); font-size: 1rem;">PERSONAL BEST: <span id="menuHighScore">0</span> CRÉDITS</p>
+            <button class="btn-main" id="startBtn">INITIALIZE DEPLOYMENT</button>
+        </div>
+    </div>
+
+    <div id="levelSelectMenu" class="modal">
+        <div class="modal-content glass-panel">
+            <h1>SELECT SECTOR</h1>
+            <button class="btn-main btn-lvl-1" onclick="selectLevel(1)">SECTOR 1 (NORMAL)</button>
+            <button class="btn-main btn-lvl-2" onclick="selectLevel(2)">SECTOR 2 (HARD)</button>
+            <button class="btn-main btn-lvl-3" onclick="selectLevel(3)">SECTOR 3 (NIGHTMARE)</button>
+        </div>
+    </div>
+
+    <div id="optionsMenu" class="modal">
+        <div class="modal-content glass-panel">
+            <h1>OPTIONS</h1>
+            <button class="btn-main" id="toggleMusicBtn">🔊 TOGGLE MUSIC</button>
+            <button class="btn-main" id="resumeBtn">▶ RESUME COMBAT</button>
+            <button class="btn-main" onclick="location.reload()" style="border-color: #ef4444; color: #ef4444;">⏹ ABORT MISSION</button>
+        </div>
+    </div>
+
+    <div id="shopMenu" class="modal">
+        <div class="modal-content glass-panel">
+            <h1 style="color: var(--neon-purple); text-shadow: 0 0 20px var(--neon-purple);">BLACK MARKET</h1>
+            <p class="text-gold" style="font-size: 1.2rem;">CRÉDITS: <span id="shopCoinUI">0</span></p>
+            <div class="shop-grid" id="shopItems"></div>
+            <button class="btn-main" id="closeShopBtn" style="border-color: #555; color: white; margin-top:15px;">❌ EXIT</button>
+        </div>
+    </div>
+
+    <div id="gameOverMenu" class="modal" style="background-color: rgba(30, 0, 0, 0.95);">
+        <div class="modal-content glass-panel" style="border-color: var(--neon-red); box-shadow: 0 0 50px rgba(255, 0, 60, 0.3);">
+            <h1 style="color: var(--neon-red); font-size: 4rem; text-shadow: 0 0 30px var(--neon-red);">CORE DESTROYED</h1>
+            <p style="color: white; font-size: 1.5rem; margin: 20px 0;">FINAL CRÉDITS: <span id="finalScoreUI" class="text-gold">0</span></p>
+            <button class="btn-main" onclick="location.reload()" style="border-color: var(--neon-red); color: var(--neon-red);">REBOOT SYSTEM</button>
+        </div>
+    </div>
+
+    <div id="banScreen" class="modal" style="background-color: rgba(20, 0, 0, 0.98);">
+        <div class="modal-content">
+            <h1 style="color: var(--neon-red); font-size: 4rem; text-shadow: 0 0 30px var(--neon-red);">BANNED</h1>
+            <p id="banReason" style="font-size: 1.2rem; color: #ff8888; font-family: monospace;">TAMPERING DETECTED</p>
+        </div>
+    </div>
+
+    <script>
+        // HONEYPOT ANTI-CHEAT
+        window.player = new Proxy({ damage: 25, coins: 0, level: 1, hp: 100 }, {
+            set: function(obj, prop, value) { window.triggerBan(`VANGUARD: Illegal Write on '${prop}'`); return false; }
+        });
+
+        (function SecureGameEngine() {
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const bgMusic = document.getElementById('bgMusic');
+            bgMusic.volume = 0.2;
+
+            let savedHighScore = localStorage.getItem('cyberHunterHighScore') || 0;
+            document.getElementById('menuHighScore').innerText = savedHighScore;
+            document.getElementById('highScoreUI').innerText = savedHighScore;
+
+            // Audio API
+            let audioCtx = null;
+            function playSound(type) {
+                if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if(audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+                
+                if(type === 'PULSE RIFLE') { osc.type = 'square'; osc.frequency.setValueAtTime(800, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.1); gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1); osc.start(now); osc.stop(now + 0.1); } 
+                else if (type === 'PLASMA CANNON') { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(400, now); osc.frequency.exponentialRampToValueAtTime(50, now + 0.2); gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2); osc.start(now); osc.stop(now + 0.2); } 
+                else if (type === 'RAILGUN') { osc.type = 'sine'; osc.frequency.setValueAtTime(2000, now); osc.frequency.linearRampToValueAtTime(3000, now + 0.3); gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.3); osc.start(now); osc.stop(now + 0.3); } 
+                else if (type === 'DARK MATTER') { osc.type = 'triangle'; osc.frequency.setValueAtTime(100, now); osc.frequency.linearRampToValueAtTime(10, now + 0.4); gain.gain.setValueAtTime(0.4, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.4); osc.start(now); osc.stop(now + 0.4); }
+                else if (type === 'HIT') { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.exponentialRampToValueAtTime(50, now + 0.3); gain.gain.setValueAtTime(0.5, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3); osc.start(now); osc.stop(now + 0.3); }
+            }
+
+           // DATA ENGINE (THE VAULT)
+            let secureState = {
+                gameState: 'MENU', coins: 0, damage: 25, weaponName: 'PULSE RIFLE', weaponColor: '#00f3ff', bulletSpeed: 15,
+                wave: 1, currentLevel: 1, levelName: '',
+                monsters: [], bullets: [],
+                mouseX: canvas.width / 2, mouseY: canvas.height / 2, hitMarkerTimer: 0, waveMessageTimer: 0,
+                playerHp: 100,
+                turret: { x: canvas.width / 2, y: canvas.height - 30, radius: 40 },
+                isWaveTransitioning: false // <--- TAMBAHKAN INI (GEMBOK WAVE)
+            };
+
+            const armory = [
+                { id: 1, name: "PLASMA CANNON", dmg: 75, speed: 10, cost: 300, color: "#39ff14" },
+                { id: 2, name: "RAILGUN", dmg: 150, speed: 30, cost: 1000, color: "#00f3ff" },
+                { id: 3, name: "DARK MATTER", dmg: 300, speed: 8, cost: 5000, color: "#b829ff" }
+            ];
+
+            const uis = { coin: document.getElementById('coinUI'), shopCoin: document.getElementById('shopCoinUI'), weapon: document.getElementById('weaponNameUI'), wave: document.getElementById('waveUI'), level: document.getElementById('levelNameUI'), highScore: document.getElementById('highScoreUI'), playerHp: document.getElementById('playerHpUI') };
+
+            function updateUI() {
+                uis.coin.innerText = secureState.coins; uis.shopCoin.innerText = secureState.coins;
+                uis.weapon.innerText = secureState.weaponName; uis.weapon.style.color = secureState.weaponColor;
+                uis.wave.innerText = secureState.wave; uis.level.innerText = `SECTOR: ${secureState.levelName}`;
+                uis.playerHp.innerText = secureState.playerHp;
+                
+                if (secureState.coins > savedHighScore) {
+                    savedHighScore = secureState.coins;
+                    localStorage.setItem('cyberHunterHighScore', savedHighScore);
+                    uis.highScore.innerText = savedHighScore;
+                }
+            }
+
+            function triggerGameOver() {
+                secureState.gameState = 'GAMEOVER';
+                document.getElementById('hud').style.display = 'none';
+                document.getElementById('gameOverMenu').style.display = 'flex';
+                document.getElementById('finalScoreUI').innerText = secureState.coins;
+                document.getElementById('damageOverlay').style.display = 'block';
+                bgMusic.pause();
+            }
+
+            function takeDamage(amount) {
+                secureState.playerHp -= amount;
+                if(secureState.playerHp < 0) secureState.playerHp = 0;
+                updateUI();
+                playSound('HIT');
+                
+                // Efek visual layar merah saat kena hit
+                document.getElementById('damageOverlay').style.display = 'block';
+                setTimeout(() => { if(secureState.gameState !== 'GAMEOVER') document.getElementById('damageOverlay').style.display = 'none'; }, 200);
+
+                if(secureState.playerHp <= 0) triggerGameOver();
+            }
+
+            function startNextWave() {
+                secureState.monsters = [];
+                const monsterCount = secureState.wave * 2; 
+                let diffMultiplier = secureState.currentLevel === 1 ? 1 : (secureState.currentLevel === 2 ? 1.5 : 2.5);
+
+                for(let i=0; i<monsterCount; i++) {
+                    let hpMultiplier = (100 + (secureState.wave * 50)) * diffMultiplier;
+                    // Monster spawn di bagian atas layar saja
+                    secureState.monsters.push({
+                        x: Math.random() * (canvas.width - 100) + 50, 
+                        y: (Math.random() * -300) - 50, // Muncul dari luar layar atas
+                        radius: window.innerWidth < 768 ? 25 : 35, 
+                        hp: hpMultiplier, maxHp: hpMultiplier, 
+                        baseSpeed: (1 + secureState.wave * 0.2) * diffMultiplier,
+                        isDead: false, damageToCore: 10 * diffMultiplier
+                    });
+                }
+                secureState.waveMessageTimer = 100; updateUI();
+            }
+
+            document.getElementById('startBtn').addEventListener('click', (e) => {
+                if (!e.isTrusted) return window.triggerBan("Script Execution Blocked");
+                if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); 
+                document.getElementById('mainMenu').style.display = 'none';
+                document.getElementById('levelSelectMenu').style.display = 'flex';
+            });
+
+            window.selectLevel = function(level) {
+                if(event && !event.isTrusted) return window.triggerBan("Auto-Clicker Detected");
+                secureState.currentLevel = level; secureState.levelName = level === 1 ? 'NORMAL' : (level === 2 ? 'HARD' : 'NIGHTMARE');
+                document.getElementById('levelSelectMenu').style.display = 'none'; document.getElementById('hud').style.display = 'flex';
+                bgMusic.play().catch(e => console.log("Autoplay blocked")); 
+                secureState.gameState = 'PLAYING'; secureState.wave = 1; secureState.coins = 0; secureState.playerHp = 100;
+                secureState.damage = 25; secureState.weaponName = 'PULSE RIFLE'; secureState.weaponColor = '#00f3ff'; secureState.bulletSpeed = 15;
+                secureState.isWaveTransitioning = false; // <--- PASTIKAN GEMBOK TERBUKA SAAT MULAI
+                startNextWave();
+            };
+
+            document.getElementById('btnOpenOptions').addEventListener('click', () => { secureState.gameState = 'PAUSED'; document.getElementById('optionsMenu').style.display = 'flex'; });
+            document.getElementById('resumeBtn').addEventListener('click', () => { secureState.gameState = 'PLAYING'; document.getElementById('optionsMenu').style.display = 'none'; });
+            document.getElementById('toggleMusicBtn').addEventListener('click', () => { bgMusic.paused ? bgMusic.play() : bgMusic.pause(); });
+            document.getElementById('btnOpenShop').addEventListener('click', () => { secureState.gameState = 'SHOP'; updateUI(); renderShop(); document.getElementById('shopMenu').style.display = 'flex'; });
+            document.getElementById('closeShopBtn').addEventListener('click', () => { secureState.gameState = 'PLAYING'; document.getElementById('shopMenu').style.display = 'none'; });
+
+            function renderShop() {
+                const shopContainer = document.getElementById('shopItems'); shopContainer.innerHTML = '';
+                armory.forEach(item => {
+                    const canAfford = secureState.coins >= item.cost; const isEquipped = secureState.weaponName === item.name;
+                    const btnHtml = isEquipped ? `<button class="buy-btn" disabled>EQUIPPED</button>` : `<button class="buy-btn" ${canAfford ? '' : 'disabled'} id="buy-${item.id}">${item.cost} CR</button>`;
+                    shopContainer.innerHTML += `<div class="shop-item"><div><h3 style="margin:0; color:${item.color};">${item.name}</h3><p style="margin:5px 0 0 0; color:#aaa;">Damage: ${item.dmg}</p></div>${btnHtml}</div>`;
+                });
+                armory.forEach(item => {
+                    const btn = document.getElementById(`buy-${item.id}`);
+                    if(btn) { btn.addEventListener('click', (e) => {
+                            if (!e.isTrusted) return window.triggerBan("Auto-Buy Hack Blocked");
+                            if (secureState.coins >= item.cost) { secureState.coins -= item.cost; secureState.damage = item.dmg; secureState.weaponName = item.name; secureState.weaponColor = item.color; secureState.bulletSpeed = item.speed; updateUI(); renderShop(); }
+                        }); }
+                });
+            }
+
+            // --- INPUT & SHOOTING MECHANICS ---
+            function handleInputMove(x, y) { secureState.mouseX = x; secureState.mouseY = y; }
+            
+            function handleShoot(x, y, isTrusted) {
+                if (secureState.gameState !== 'PLAYING') return;
+                if (!isTrusted) return window.triggerBan("Auto-Clicker Blocked!");
+
+                playSound(secureState.weaponName);
+
+                // Kalkulasi arah peluru dari Turret ke Mouse
+                const angle = Math.atan2(y - secureState.turret.y, x - secureState.turret.x);
+                const vx = Math.cos(angle) * secureState.bulletSpeed;
+                const vy = Math.sin(angle) * secureState.bulletSpeed;
+
+                // Spawn Peluru
+                secureState.bullets.push({
+                    x: secureState.turret.x, y: secureState.turret.y,
+                    vx: vx, vy: vy, radius: secureState.weaponName === 'PLASMA CANNON' ? 15 : (secureState.weaponName === 'DARK MATTER' ? 25 : 5),
+                    color: secureState.weaponColor, damage: secureState.damage, toDelete: false
+                });
+            }
+
+            window.addEventListener('mousemove', (e) => handleInputMove(e.clientX, e.clientY));
+            window.addEventListener('mousedown', (e) => handleShoot(e.clientX, e.clientY, e.isTrusted));
+            window.addEventListener('touchmove', (e) => handleInputMove(e.touches[0].clientX, e.touches[0].clientY), {passive: true});
+            window.addEventListener('touchstart', (e) => { if(e.target.tagName !== 'BUTTON') e.preventDefault(); handleShoot(e.touches[0].clientX, e.touches[0].clientY, e.isTrusted); }, {passive: false});
+
+            // --- GAME LOOP & LOGIC ---
+            function gameLoop() {
+                if (secureState.gameState === 'BANNED') return;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (secureState.gameState === 'PLAYING') { updateLogic(); drawBullets(); drawMonsters(); drawTurret(); }
+                if (secureState.gameState !== 'MENU' && secureState.gameState !== 'GAMEOVER' && window.innerWidth > 768) drawCrosshair(); 
+                requestAnimationFrame(gameLoop);
+            }
+
+            function updateLogic() {
+                // Update Posisi Turret jika layar diresize
+                secureState.turret.x = canvas.width / 2;
+                secureState.turret.y = canvas.height - 30;
+
+                // 1. UPDATE PELURU & DETEKSI TABRAKAN (Collision)
+                secureState.bullets.forEach(b => {
+                    b.x += b.vx; b.y += b.vy;
+                    // Hapus peluru jika keluar layar
+                    if(b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) b.toDelete = true;
+
+                    // Cek tabrakan peluru dengan monster
+                    secureState.monsters.forEach(m => {
+                        if(!m.isDead && !b.toDelete) {
+                            let dist = Math.hypot(b.x - m.x, b.y - m.y);
+                            if(dist < m.radius + b.radius) {
+                                m.hp -= b.damage; m.hitTimer = 5; b.toDelete = true; // Peluru hancur
+                                secureState.hitMarkerTimer = 10;
+                                if(m.hp <= 0) { m.isDead = true; secureState.coins += 50; updateUI(); }
+                            }
+                        }
+                    });
+                });
+                // Bersihkan memori peluru yang hancur
+                secureState.bullets = secureState.bullets.filter(b => !b.toDelete);
+
+                // 2. UPDATE MONSTER (AI Mengincar Turret Pemain)
+                let hitSomething = false;
+                secureState.monsters.forEach(m => {
+                    if (m.isDead) return;
+                    
+                    // Matematika mengejar target (Chasing logic)
+                    let angle = Math.atan2(secureState.turret.y - m.y, secureState.turret.x - m.x);
+                    m.x += Math.cos(angle) * m.baseSpeed;
+                    m.y += Math.sin(angle) * m.baseSpeed;
+
+                    // Cek Tabrakan Monster menabrak Core/Turret Pemain (Kamikaze)
+                    let distToCore = Math.hypot(secureState.turret.x - m.x, secureState.turret.y - m.y);
+                    if (distToCore < m.radius + secureState.turret.radius) {
+                        m.isDead = true; // Monster hancur menabrak
+                        hitSomething = true;
+                        takeDamage(m.damageToCore);
+                    }
+                });
+
+                // Cek Wave Selesai
+                if (secureState.monsters.length > 0 && secureState.monsters.every(m => m.isDead) && secureState.gameState === 'PLAYING' && !secureState.isWaveTransitioning) {
+                    secureState.isWaveTransitioning = true; // Kunci gemboknya
+                    secureState.wave++; 
+                    setTimeout(() => {
+                        startNextWave();
+                        secureState.isWaveTransitioning = false; // Buka lagi gemboknya setelah 1.5 detik
+                    }, 1500);
+                }
+            }
+
+            // --- DRAWING FUNCTIONS ---
+            function drawTurret() {
+                const tx = secureState.turret.x; const ty = secureState.turret.y;
+                
+                // Kalkulasi rotasi meriam
+                const angle = Math.atan2(secureState.mouseY - ty, secureState.mouseX - tx);
+
+                ctx.save();
+                ctx.translate(tx, ty);
+                
+                // Gambar Meriam berputar
+                ctx.rotate(angle);
+                ctx.fillStyle = "#334155"; ctx.fillRect(0, -10, 40, 20); // Laras senjata
+                ctx.fillStyle = secureState.weaponColor; ctx.fillRect(35, -8, 10, 16); // Ujung laras menyala
+                
+                // Reset rotasi untuk menggambar Base/Badan Turret
+                ctx.restore();
+
+                // Badan Turret (Kubah Core)
+                ctx.beginPath(); ctx.arc(tx, ty, secureState.turret.radius, Math.PI, 0); // Setengah lingkaran
+                ctx.fillStyle = "#0f172a"; ctx.fill();
+                ctx.lineWidth = 4; ctx.strokeStyle = secureState.weaponColor; ctx.stroke();
+                
+                // Lampu Core di tengah
+                ctx.beginPath(); ctx.arc(tx, ty, 15, 0, Math.PI*2);
+                ctx.fillStyle = secureState.weaponColor; ctx.fill();
+                ctx.shadowBlur = 20; ctx.shadowColor = secureState.weaponColor;
+            }
+
+            function drawBullets() {
+                secureState.bullets.forEach(b => {
+                    ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI*2);
+                    ctx.fillStyle = b.color; ctx.fill();
+                    ctx.shadowBlur = 10; ctx.shadowColor = b.color;
+                    ctx.shadowBlur = 0; // reset
+                });
+            }
+
+            function drawMonsters() {
+                if (secureState.waveMessageTimer > 0) {
+                    ctx.fillStyle = "rgba(0, 243, 255, " + (secureState.waveMessageTimer/60) + ")";
+                    ctx.font = window.innerWidth < 768 ? "bold 40px Rajdhani" : "bold 80px Rajdhani"; ctx.textAlign = "center";
+                    ctx.fillText(`WAVE ${secureState.wave}`, canvas.width/2, canvas.height/2 - 100);
+                    ctx.textAlign = "left"; secureState.waveMessageTimer--;
+                }
+                secureState.monsters.forEach(m => {
+                    if (m.isDead) return;
+                    if(m.hitTimer && m.hitTimer > 0) { ctx.fillStyle = "white"; m.hitTimer--; } 
+                    else {
+                        const gradient = ctx.createRadialGradient(m.x, m.y, 5, m.x, m.y, m.radius);
+                        gradient.addColorStop(0, "white"); gradient.addColorStop(0.5, "#ff003c"); gradient.addColorStop(1, "transparent");
+                        ctx.fillStyle = gradient;
+                    }
+                    ctx.beginPath(); ctx.arc(m.x, m.y, m.radius, 0, Math.PI * 2); ctx.fill();
+                    
+                    const barW = m.radius * 1.5, barH = 5;
+                    ctx.fillStyle = "rgba(255, 0, 0, 0.5)"; ctx.fillRect(m.x - barW/2, m.y - m.radius - 15, barW, barH);
+                    ctx.fillStyle = "#39ff14"; ctx.fillRect(m.x - barW/2, m.y - m.radius - 15, barW * (m.hp/m.maxHp), barH);
+                });
+            }
+
+            function drawCrosshair() {
+                const x = secureState.mouseX; const y = secureState.mouseY;
+                ctx.strokeStyle = secureState.weaponColor; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 15, 0, Math.PI * 2); ctx.stroke();
+                ctx.fillStyle = secureState.weaponColor; ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+                if (secureState.hitMarkerTimer > 0) { ctx.strokeStyle = "white"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x - 15, y - 15); ctx.lineTo(x - 5, y - 5); ctx.moveTo(x + 15, y - 15); ctx.lineTo(x + 5, y - 5); ctx.moveTo(x - 15, y + 15); ctx.lineTo(x - 5, y + 5); ctx.moveTo(x + 15, y + 15); ctx.lineTo(x + 5, y + 5); ctx.stroke(); secureState.hitMarkerTimer--; }
+            }
+
+            gameLoop();
+            window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+        })();
+
+        window.triggerBan = function(reason) {
+            document.getElementById('banReason').innerText = reason; document.getElementById('banScreen').style.display = 'flex';
+            document.getElementById('uiLayer').style.display = 'none'; document.body.style.cursor = 'default'; document.getElementById('bgMusic').pause(); 
+        };
+    </script>
+</body>
+</html>
